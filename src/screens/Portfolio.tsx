@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Bitcoin, PieChart, FileText, ChevronRight, Lightbulb } from 'lucide-react';
 import { motion } from 'motion/react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell } from 'recharts';
@@ -11,6 +12,11 @@ const allocationData = [
 ];
 
 export default function Portfolio() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -105,21 +111,25 @@ export default function Portfolio() {
       <section className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-[#1a1c1e] rounded-3xl p-8 relative overflow-hidden">
           <h4 className="font-headline font-bold text-xl mb-6">Varlık Dağılımı</h4>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={allocationData}>
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {allocationData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill="#7ad2f3" fillOpacity={0.2 + (index * 0.15)} />
-                  ))}
-                </Bar>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#c0c7cd', fontSize: 10 }} />
-                <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ backgroundColor: '#333537', border: 'none', borderRadius: '8px', fontSize: '10px' }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="w-full min-h-[200px]">
+            {mounted ? (
+              <ResponsiveContainer width="100%" aspect={2} minWidth={0}>
+                <BarChart data={allocationData}>
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                    {allocationData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill="#7ad2f3" fillOpacity={0.2 + (index * 0.15)} />
+                    ))}
+                  </Bar>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#c0c7cd', fontSize: 10 }} />
+                  <Tooltip 
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ backgroundColor: '#333537', border: 'none', borderRadius: '8px', fontSize: '10px' }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full bg-[#1e2022]/20 animate-pulse rounded-xl" />
+            )}
           </div>
         </div>
 

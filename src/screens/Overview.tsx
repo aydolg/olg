@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { TrendingUp, PieChart, ReceiptText, Landmark, Bitcoin, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area } from 'recharts';
@@ -13,6 +14,11 @@ const data = [
 ];
 
 export default function Overview() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
@@ -57,25 +63,29 @@ export default function Overview() {
             </div>
           </div>
 
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7ad2f3" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#7ad2f3" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#7ad2f3" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorValue)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="w-full min-h-[200px]">
+            {mounted ? (
+              <ResponsiveContainer width="100%" aspect={2.5} minWidth={0}>
+                <AreaChart data={data}>
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7ad2f3" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#7ad2f3" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="#7ad2f3" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorValue)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full bg-[#1e2022]/20 animate-pulse rounded-xl" />
+            )}
           </div>
           
           <div className="flex justify-between mt-4 text-[10px] text-[#c0c7cd]/60 uppercase tracking-widest">

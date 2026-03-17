@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Lightbulb, Shield, Info } from 'lucide-react';
 import { motion } from 'motion/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from 'recharts';
@@ -20,6 +21,11 @@ const incomeData = [
 ];
 
 export default function Analysis() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -50,24 +56,28 @@ export default function Analysis() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Donut Chart */}
         <div className="md:col-span-8 bg-[#1a1c1e] rounded-3xl p-8 flex flex-col md:flex-row items-center gap-10">
-          <div className="relative w-64 h-64 flex-shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={allocationData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {allocationData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="relative w-64 flex-shrink-0 min-h-[256px]">
+            {mounted ? (
+              <ResponsiveContainer width="100%" aspect={1} minWidth={0}>
+                <PieChart>
+                  <Pie
+                    data={allocationData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {allocationData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full bg-[#1e2022]/20 animate-pulse rounded-full" />
+            )}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <span className="text-[#c0c7cd] text-xs font-medium uppercase tracking-widest">Toplam</span>
               <span className="text-[#e2e2e5] text-2xl font-bold font-headline">₺2.4M</span>
@@ -150,17 +160,21 @@ export default function Analysis() {
               <p className="text-[#c0c7cd] text-[10px]">Aylık Ort.</p>
             </div>
           </div>
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={incomeData}>
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {incomeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 3 ? '#7ad2f3' : '#333537'} />
-                  ))}
-                </Bar>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#c0c7cd', fontSize: 10 }} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="w-full min-h-[128px]">
+            {mounted ? (
+              <ResponsiveContainer width="100%" aspect={2} minWidth={0}>
+                <BarChart data={incomeData}>
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {incomeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 3 ? '#7ad2f3' : '#333537'} />
+                    ))}
+                  </Bar>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#c0c7cd', fontSize: 10 }} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full bg-[#1e2022]/20 animate-pulse rounded-xl" />
+            )}
           </div>
         </div>
       </div>
