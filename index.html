@@ -610,7 +610,7 @@ function gonder() {
   btn.disabled = true;
   btn.textContent = 'Kaydediliyor...';
 
-  fetch(API_URL, { method: 'POST', body: body, redirect: 'follow' })
+  fetch(API_URL + '?' + body.toString(), { method: 'GET' })
     .then(function(r) { return r.text(); })
     .then(function(text) {
       var d;
@@ -862,7 +862,7 @@ function filtreUygula(v) {
 function silSor(satir) {
   if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
   var body = new URLSearchParams({ eylem: 'sil', tip: detayTip, satir: satir });
-  fetch(API_URL, { method: 'POST', body: body })
+  fetch(API_URL + '?' + body.toString(), { method: 'GET' })
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.durum === 'OK') {
