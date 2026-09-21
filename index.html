@@ -269,6 +269,62 @@ input:focus,select:focus{outline:none;border-color:var(--pri);background:var(--c
 <div class="toast" id="toast"></div>
 
 <script>
+// ============================================================
+//  JSONP OVERRIDE — fetch çağrıları otomatik JSONP'ye dönüşür
+//  CORS sorunu tamamen ortadan kalkar
+// ============================================================
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    if (typeof url === 'string' && url.indexOf('script.google.com') !== -1) {
+      var parts = url.split('?');
+      var base = parts[0];
+      var qs = parts[1] || '';
+      qs = qs.split('&').filter(function(p){ return p.indexOf('_=') !== 0; }).join('&');
+
+      return new Promise(function(resolve, reject) {
+        var cbName = 'pcb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        var temizlendi = false;
+        var script = null;
+        var zaman = null;
+
+        function temizle() {
+          if (temizlendi) return;
+          temizlendi = true;
+          try { delete window[cbName]; } catch(e) { window[cbName] = undefined; }
+          if (script && script.parentNode) script.parentNode.removeChild(script);
+          if (zaman) clearTimeout(zaman);
+        }
+
+        zaman = setTimeout(function() {
+          temizle();
+          reject(new Error('Zaman aşımı (30 sn)'));
+        }, 30000);
+
+        window[cbName] = function(data) {
+          temizle();
+          resolve({
+            ok: true,
+            status: 200,
+            json: function() { return Promise.resolve(data); },
+            text: function() { return Promise.resolve(JSON.stringify(data)); }
+          });
+        };
+
+        var fullQS = (qs ? qs + '&' : '') + 'callback=' + cbName;
+        script = document.createElement('script');
+        script.src = base + '?' + fullQS;
+        script.onerror = function() {
+          temizle();
+          reject(new Error('Sunucuya ulaşılamadı'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return _origFetch.apply(this, arguments);
+  };
+})();
+
 var API_URL = localStorage.getItem('portfoy_api_url') || '';
 var kod = 'h', hfMod = 'al', kapatMod = 'ac';
 var acikKayitlar = [], acikPozisyonlar = [];
@@ -315,25 +371,28 @@ function apiTest() {
   var v = document.getElementById('api-input').value.trim();
   var el = document.getElementById('api-test-sonuc');
   el.textContent = 'Test ediliyor...';
-  fetch(v + '?sayfa=ping&_=' + Date.now())
-    .then(function(r){ return r.text(); })
-    .then(function(t){
-      try {
-        var d = JSON.parse(t);
-        if (d.durum === 'OK') el.innerHTML = '<span style="color:#10b981">✓ OK (' + (d.surum||'') + ')</span>';
-        else el.innerHTML = '<span style="color:#f59e0b">' + t.slice(0,80) + '</span>';
-      } catch(e){ el.innerHTML = '<span style="color:#dc2626">JSON değil: ' + t.slice(0,60) + '</span>'; }
+  var gecici = API_URL;
+  API_URL = v;
+  fetch(API_URL + '?sayfa=ping')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      API_URL = gecici;
+      if (d.durum === 'OK') el.innerHTML = '<span style="color:#10b981">✓ OK (' + (d.surum||'') + ')</span>';
+      else el.innerHTML = '<span style="color:#f59e0b">' + JSON.stringify(d).slice(0,80) + '</span>';
     })
-    .catch(function(e){ el.innerHTML = '<span style="color:#dc2626">Hata: ' + e.message + '</span>'; });
+    .catch(function(e){
+      API_URL = gecici;
+      el.innerHTML = '<span style="color:#dc2626">Hata: ' + e.message + '</span>';
+    });
 }
 function apiDurumKontrol() {
   var el = document.getElementById('api-durum');
   if (!API_URL) { el.textContent = '⚠️ API URL ayarlanmadı'; return; }
-  fetch(API_URL + '?sayfa=ping&_=' + Date.now())
-    .then(function(r){ return r.text(); })
-    .then(function(t){
-      try { JSON.parse(t); el.textContent = '✓ Bağlantı OK'; }
-      catch(e){ el.textContent = '⚠️ Bağlantı sorunu'; }
+  fetch(API_URL + '?sayfa=ping')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d && d.durum === 'OK') el.textContent = '✓ Bağlantı OK';
+      else el.textContent = '⚠️ Bağlantı sorunu';
     })
     .catch(function(){ el.textContent = '⚠️ Bağlantı hatası'; });
 }
@@ -386,7 +445,7 @@ function kapatSekme(mod) {
 function acikPozisyonlarYukle() {
   if (!API_URL) return;
   var tip = document.getElementById('tip').value;
-  fetch(API_URL + '?sayfa=acikPozisyonlar&tip=' + encodeURIComponent(tip) + '&_=' + Date.now())
+  fetch(API_URL + '?sayfa=acikPozisyonlar&tip=' + encodeURIComponent(tip))
     .then(function(r){ return r.json(); })
     .then(function(liste){
       if (!Array.isArray(liste)) return;
@@ -404,7 +463,7 @@ function acikPozisyonlarYukle() {
 function acikKayitlarYukle() {
   if (!API_URL) return;
   var tip = document.getElementById('tip').value;
-  fetch(API_URL + '?sayfa=acikKayitlar&tip=' + encodeURIComponent(tip) + '&_=' + Date.now())
+  fetch(API_URL + '?sayfa=acikKayitlar&tip=' + encodeURIComponent(tip))
     .then(function(r){ return r.json(); })
     .then(function(liste){
       if (!Array.isArray(liste)) return;
@@ -479,9 +538,6 @@ function calcKapat(t) {
   toast('Süre: ' + gun + ' gün | Net: ₺' + fmt(net));
 }
 
-// ============================================================
-//  KAYDET — buton her durumda sıfırlanır
-// ============================================================
 function gonder() {
   if (!API_URL) { toast('Önce Ayarlar sekmesinden API URL girin.', true); apiModalAc(); return; }
   var btn = document.getElementById('kaydet-btn');
@@ -539,18 +595,10 @@ function gonder() {
     btn.textContent = 'Kaydet → Sheets';
   }, 30000);
 
-  fetch(API_URL + '?' + body.toString() + '&_=' + Date.now())
-    .then(function(r){ return r.text(); })
-    .then(function(text) {
+  fetch(API_URL + '?' + body.toString())
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
       clearTimeout(_acil);
-      var d;
-      try { d = JSON.parse(text); }
-      catch(e) {
-        toast('Sunucu yanıtı okunamadı.', true);
-        btn.disabled = false;
-        btn.textContent = 'Kaydet → Sheets';
-        return;
-      }
       if (d.durum === 'OK') {
         toast(d.mesaj);
         try { haptic(15); } catch(e){}
@@ -581,16 +629,13 @@ function gonder() {
     });
 }
 
-// ============================================================
-//  ÖZET
-// ============================================================
 function ozetYukle() {
   if (!API_URL) {
     document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos"><div class="ico">⚙️</div><div>Ayar yapılmadı</div></div>';
     return;
   }
   document.getElementById('ozet-icerik').innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-  fetch(API_URL + '?sayfa=ozet&_=' + Date.now())
+  fetch(API_URL + '?sayfa=ozet')
     .then(function(r){ return r.json(); })
     .then(function(d) {
       if (!d || !d.genel) {
@@ -598,7 +643,7 @@ function ozetYukle() {
         return;
       }
       ozetCiz(d);
-      fetch(API_URL + '?sayfa=seri&kat=genel&gun=365&_=' + Date.now())
+      fetch(API_URL + '?sayfa=seri&kat=genel&gun=365')
         .then(function(r){ return r.json(); })
         .then(function(seri) {
           if (Array.isArray(seri) && seri.length >= 2) sparkCiz(seri);
@@ -767,9 +812,6 @@ function sparkCiz(seri) {
   hedef.innerHTML = html;
 }
 
-// ============================================================
-//  DETAY
-// ============================================================
 function detayAc(tip) {
   detayTip = tip;
   var b = {'Hisse Senedi':'📈 Hisse','Bireysel Emeklilik Fonları':'🏦 BES','Yatırım Fonları':'💼 Yatırım Fonları','Bono':'📄 Bono','Mevduat':'🏛️ Mevduat'};
@@ -777,7 +819,7 @@ function detayAc(tip) {
   document.getElementById('detay-icerik').innerHTML = '<div class="yukleniyor">Yükleniyor...</div>';
   document.getElementById('detay-overlay').classList.add('acik');
   document.body.style.overflow = 'hidden';
-  fetch(API_URL + '?sayfa=detay&tip=' + encodeURIComponent(tip) + '&_=' + Date.now())
+  fetch(API_URL + '?sayfa=detay&tip=' + encodeURIComponent(tip))
     .then(function(r){ return r.json(); })
     .then(function(data){ detayData = Array.isArray(data) ? data : []; detayCiz(); })
     .catch(function(){
@@ -848,7 +890,7 @@ function filtreUygula(v) {
 function silSor(satir) {
   if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
   var body = new URLSearchParams({eylem:'sil',tip:detayTip,satir:satir});
-  fetch(API_URL + '?' + body.toString() + '&_=' + Date.now())
+  fetch(API_URL + '?' + body.toString())
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.durum === 'OK') {
@@ -863,9 +905,6 @@ function silSor(satir) {
     .catch(function(){ toast('Bağlantı hatası.', true); });
 }
 
-// ============================================================
-//  BAŞLAT
-// ============================================================
 (function(){
   var tarih = document.getElementById('tarih');
   var sBas = document.getElementById('s-bas');
