@@ -635,6 +635,8 @@ function ozetYukle() {
     return;
   }
   document.getElementById('ozet-icerik').innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+  
+  // 1. ÖZET — ana veri
   fetch(API_URL + '?sayfa=ozet')
     .then(function(r){ return r.json(); })
     .then(function(d) {
@@ -642,18 +644,37 @@ function ozetYukle() {
         document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos">Veri yok</div>';
         return;
       }
+      // Önce XIRR alanını boş çiz
+      d.xirr = null;
       ozetCiz(d);
-      fetch(API_URL + '?sayfa=seri&kat=genel&gun=365')
-        .then(function(r){ return r.json(); })
-        .then(function(seri) {
-          if (Array.isArray(seri) && seri.length >= 2) sparkCiz(seri);
-        }).catch(function(){});
+      
+      // 2. XIRR — arka planda yavaş yüklenir
+      setTimeout(function(){
+        fetch(API_URL + '?sayfa=xirr')
+          .then(function(r){ return r.json(); })
+          .then(function(x){
+            var el = document.getElementById('xirr-bant');
+            if (el && x && x.xirr !== null && x.xirr !== undefined) {
+              el.innerHTML = '<span class="xirr-lbl">📊 XIRR (yıllık getiri)</span>'
+                + '<span class="xirr-val ' + (x.xirr >= 0 ? 'pos' : 'neg') + '">%' + fmt(x.xirr) + '</span>';
+              el.style.display = 'flex';
+            }
+          }).catch(function(){});
+      }, 500);
+      
+      // 3. Seri (grafik) — arka planda
+      setTimeout(function(){
+        fetch(API_URL + '?sayfa=seri&kat=genel&gun=365')
+          .then(function(r){ return r.json(); })
+          .then(function(seri) {
+            if (Array.isArray(seri) && seri.length >= 2) sparkCiz(seri);
+          }).catch(function(){});
+      }, 800);
     })
     .catch(function(e) {
       document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos">Hata: ' + e.message + '</div>';
     });
 }
-
 function perfVal(kz, pct) {
   if (kz === null || kz === undefined) return ['<span class="perf-val perf-notr">—</span>', ''];
   var ok = kz >= 0, cls = ok ? 'perf-kar' : 'perf-zarar', ik = ok ? '▲' : '▼';
@@ -699,10 +720,9 @@ function ozetCiz(d) {
   html += '<div class="kz-pct" style="color:'+(kzOk?'#a7f3d0':'#fca5a5')+'">';
   html += (kzOk?'▲ Kar: ':'▼ Zarar: ')+'₺'+fmt(Math.abs(g.toplamKZ))+' ('+fmt(Math.abs(g.toplamKZ/(g.toplamYatirim||1)*100))+'%)';
   html += '</div>';
-  if (d.xirr !== null && d.xirr !== undefined) {
-    html += '<div class="xirr-bant"><span class="xirr-lbl">📊 XIRR (yıllık getiri)</span>';
-    html += '<span class="xirr-val '+(d.xirr>=0?'pos':'neg')+'">%'+fmt(d.xirr)+'</span></div>';
-  }
+  html += '<div class="xirr-bant" id="xirr-bant" style="display:none">';
+  html += '<span class="xirr-lbl">📊 XIRR (yıllık getiri)</span>';
+   html += '<span class="xirr-val">—</span></div>';
   html += '</div>';
   html += '<div id="spark-alani"></div>';
 
