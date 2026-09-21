@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Portföy Takip v6.6</title>
+<title>Portföy Takip</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--pri:#185FA5;--pri-d:#0C447C;--bg:#f0f4f8;--card:#fff;--txt:#111;--txt2:#666;--brd:#e5e7eb;--ok:#10b981;--err:#ef4444;--warn:#b45309;--r:14px}
@@ -57,12 +57,12 @@ input:focus,select:focus{outline:none;border-color:var(--pri);background:var(--c
 .kz-lbl{font-size:12px;opacity:.8;margin-bottom:2px}
 .kz-val{font-size:28px;font-weight:800;letter-spacing:-.5px;line-height:1.05}
 .kz-pct{font-size:14px;margin-top:6px;font-weight:600}
-.xirr-bant{display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15);font-size:12px}
+.xirr-bant{display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;position:relative;z-index:1}
 .xirr-lbl{opacity:.75}
 .xirr-val{font-weight:700}
 .xirr-val.pos{color:#a7f3d0}
 .xirr-val.neg{color:#fca5a5}
-.perf-bant{background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:12px 15px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.perf-bant{background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:12px 15px;margin-bottom:12px}
 .perf-satir{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px}
 .perf-satir:last-child{border-bottom:none}
 .perf-lbl{color:rgba(255,255,255,.6)}
@@ -70,7 +70,7 @@ input:focus,select:focus{outline:none;border-color:var(--pri);background:var(--c
 .perf-kar{color:#6ee7b7}.perf-zarar{color:#fca5a5}.perf-notr{color:rgba(255,255,255,.4)}
 .sparkline-kart{background:var(--card);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .sparkline-bas{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--txt)}
-.sparkline-bas .val{font-size:14px;font-variant-numeric:tabular-nums}
+.sparkline-bas .val{font-size:14px}
 .sparkline{width:100%;height:70px;display:block}
 .sparkline-eksen{display:flex;justify-content:space-between;font-size:10px;color:var(--txt2);margin-top:4px}
 .vkart{background:var(--card);border-radius:var(--r);padding:16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);animation:fadeUp .3s ease both}
@@ -99,7 +99,6 @@ input:focus,select:focus{outline:none;border-color:var(--pri);background:var(--c
 .detay-hdr{background:linear-gradient(135deg,#185FA5,#0C447C);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
 .detay-geri{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:9px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;min-height:44px}
 .detay-baslik-blok .ana{font-size:16px;font-weight:700}
-.detay-baslik-blok .alt{font-size:11px;opacity:.7;margin-top:2px}
 .detay-icerik{padding:10px 14px calc(30px + env(safe-area-inset-bottom))}
 .sembol-kart,.bm-kart{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:0 1px 5px rgba(0,0,0,.08)}
 .sembol-kart-bas,.bm-kart-bas{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
@@ -256,7 +255,6 @@ input:focus,select:focus{outline:none;border-color:var(--pri);background:var(--c
     <button class="detay-geri" onclick="detayKapat()">← Geri</button>
     <div class="detay-baslik-blok">
       <div class="ana" id="detay-baslik">Detay</div>
-      <div class="alt">Açık Pozisyonlar</div>
     </div>
   </div>
   <div class="detay-icerik" id="detay-icerik"></div>
@@ -272,6 +270,26 @@ input:focus,select:focus{outline:none;border-color:var(--pri);background:var(--c
 
 <script>
 var API_URL = localStorage.getItem('portfoy_api_url') || '';
+var kod = 'h', hfMod = 'al', kapatMod = 'ac';
+var acikKayitlar = [], acikPozisyonlar = [];
+var detayTip = '', detayData = [];
+
+var meta = {
+  h:{lbl:'Hisse',cls:'bh',ph:'THYAO'},
+  bes:{lbl:'BES',cls:'bbes',ph:'BES FONU'},
+  yf:{lbl:'Yatırım Fonu',cls:'byf',ph:'TI2, AK2'},
+  b:{lbl:'Bono',cls:'bb',ph:'TRT260126'},
+  m:{lbl:'Mevduat',cls:'bm',ph:'Garanti'}
+};
+
+function fmt(n){ return Number(n||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function haptic(ms){ try { if(navigator.vibrate) navigator.vibrate(ms||10); } catch(e){} }
+function toast(msg, err) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast goster' + (err?' err':'');
+  setTimeout(function(){ t.className = 'toast' + (err?' err':''); }, 2800);
+}
 
 function apiModalAc() {
   document.getElementById('api-input').value = API_URL;
@@ -282,11 +300,16 @@ function apiKaydet() {
   var v = document.getElementById('api-input').value.trim();
   var el = document.getElementById('api-test-sonuc');
   if (!v || v.indexOf('script.google.com') === -1 || v.indexOf('/exec') === -1) {
-    el.innerHTML = '<span style="color:#dc2626">Geçersiz — /exec ile bitmeli</span>'; return;
+    el.innerHTML = '<span style="color:#dc2626">Geçersiz — /exec ile bitmeli</span>';
+    return;
   }
-  API_URL = v; localStorage.setItem('portfoy_api_url', v);
+  API_URL = v;
+  localStorage.setItem('portfoy_api_url', v);
   el.innerHTML = '<span style="color:#10b981">✓ Kaydedildi</span>';
-  setTimeout(function(){ document.getElementById('modal-ayar').classList.remove('acik'); apiDurumKontrol(); }, 800);
+  setTimeout(function(){
+    document.getElementById('modal-ayar').classList.remove('acik');
+    apiDurumKontrol();
+  }, 800);
 }
 function apiTest() {
   var v = document.getElementById('api-input').value.trim();
@@ -294,12 +317,12 @@ function apiTest() {
   el.textContent = 'Test ediliyor...';
   fetch(v + '?sayfa=ping&_=' + Date.now())
     .then(function(r){ return r.text(); })
-    .then(function(t) {
+    .then(function(t){
       try {
         var d = JSON.parse(t);
         if (d.durum === 'OK') el.innerHTML = '<span style="color:#10b981">✓ OK (' + (d.surum||'') + ')</span>';
         else el.innerHTML = '<span style="color:#f59e0b">' + t.slice(0,80) + '</span>';
-      } catch(e) { el.innerHTML = '<span style="color:#dc2626">JSON değil: ' + t.slice(0,60) + '</span>'; }
+      } catch(e){ el.innerHTML = '<span style="color:#dc2626">JSON değil: ' + t.slice(0,60) + '</span>'; }
     })
     .catch(function(e){ el.innerHTML = '<span style="color:#dc2626">Hata: ' + e.message + '</span>'; });
 }
@@ -308,20 +331,13 @@ function apiDurumKontrol() {
   if (!API_URL) { el.textContent = '⚠️ API URL ayarlanmadı'; return; }
   fetch(API_URL + '?sayfa=ping&_=' + Date.now())
     .then(function(r){ return r.text(); })
-    .then(function(t) {
+    .then(function(t){
       try { JSON.parse(t); el.textContent = '✓ Bağlantı OK'; }
       catch(e){ el.textContent = '⚠️ Bağlantı sorunu'; }
     })
     .catch(function(){ el.textContent = '⚠️ Bağlantı hatası'; });
 }
 
-var fmt = function(n){ return Number(n||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
-function haptic(ms){ try { if(navigator.vibrate) navigator.vibrate(ms||10); } catch(e){} }
-function toast(msg, err) {
-  var t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast goster' + (err?' err':'');
-  setTimeout(function(){ t.className = 'toast' + (err?' err':''); }, 2800);
-}
 function bottomNav(id, el) {
   document.querySelectorAll('.bnav button').forEach(function(b){ b.classList.remove('active'); });
   el.classList.add('active');
@@ -331,20 +347,11 @@ function bottomNav(id, el) {
   if (id === 'ozet') ozetYukle();
 }
 
-var kod='h', hfMod='al', kapatMod='ac';
-var acikKayitlar=[], acikPozisyonlar=[];
-var meta = {
-  h:{lbl:'Hisse',cls:'bh',ph:'THYAO'},
-  bes:{lbl:'BES',cls:'bbes',ph:'BES FONU'},
-  yf:{lbl:'Yatırım Fonu',cls:'byf',ph:'TI2, AK2'},
-  b:{lbl:'Bono',cls:'bb',ph:'TRT260126'},
-  m:{lbl:'Mevduat',cls:'bm',ph:'Garanti'}
-};
-
 function sec(el, tip, k) {
   document.querySelectorAll('.tbtn').forEach(function(b){ b.classList.remove('active'); });
   el.classList.add('active');
-  document.getElementById('tip').value = tip; kod = k;
+  document.getElementById('tip').value = tip;
+  kod = k;
   var sabit = (k === 'b' || k === 'm');
   document.getElementById('fh').classList.toggle('hidden', sabit);
   document.getElementById('fs').classList.toggle('hidden', !sabit);
@@ -355,7 +362,8 @@ function sec(el, tip, k) {
   } else {
     var b2 = document.getElementById('bdg2'); b2.textContent = meta[k].lbl; b2.className = 'bdg '+meta[k].cls;
     document.getElementById('s-ad').placeholder = meta[k].ph;
-    kapatSekme('ac'); calcS();
+    kapatSekme('ac');
+    calcS();
   }
 }
 function hfSekme(mod) {
@@ -386,7 +394,8 @@ function acikPozisyonlarYukle() {
       var sel = document.getElementById('h-sec');
       sel.innerHTML = "<option value=''>— Pozisyon —</option>";
       liste.forEach(function(p){
-        var o = document.createElement('option'); o.value = p.sembol;
+        var o = document.createElement('option');
+        o.value = p.sembol;
         o.textContent = p.sembol + ' | ' + fmt(p.netAdet) + ' ad.';
         sel.appendChild(o);
       });
@@ -404,7 +413,8 @@ function acikKayitlarYukle() {
         var sel = document.getElementById('k-sec-'+t);
         sel.innerHTML = "<option value=''>— Kayıt —</option>";
         liste.forEach(function(k){
-          var o = document.createElement('option'); o.value = k.satir;
+          var o = document.createElement('option');
+          o.value = k.satir;
           o.textContent = k.ad + ' | ₺' + fmt(k.anapara) + ' | ' + k.vadeTarih;
           sel.appendChild(o);
         });
@@ -469,6 +479,9 @@ function calcKapat(t) {
   toast('Süre: ' + gun + ' gün | Net: ₺' + fmt(net));
 }
 
+// ============================================================
+//  KAYDET — buton her durumda sıfırlanır
+// ============================================================
 function gonder() {
   if (!API_URL) { toast('Önce Ayarlar sekmesinden API URL girin.', true); apiModalAc(); return; }
   var btn = document.getElementById('kaydet-btn');
@@ -513,31 +526,60 @@ function gonder() {
       if (!se || !te) { toast('Kayıt ve tarih girin.', true); return; }
       body = new URLSearchParams({tip:document.getElementById('tip').value,islem:'ErkenCikis',satir:se,tarih:te,sembol:'Erken Çıkış'});
     }
-  } catch (err) { toast('Form hatası: ' + err.message, true); return; }
-  btn.disabled = true; btn.textContent = 'Kaydediliyor...';
+  } catch (err) {
+    toast('Form hatası: ' + err.message, true);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Kaydediliyor...';
+
+  var _acil = setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = 'Kaydet → Sheets';
+  }, 30000);
 
   fetch(API_URL + '?' + body.toString() + '&_=' + Date.now())
     .then(function(r){ return r.text(); })
     .then(function(text) {
+      clearTimeout(_acil);
       var d;
-      try { d = JSON.parse(text); } catch(e) { toast('Sunucu yanıtı okunamadı.', true); return; }
+      try { d = JSON.parse(text); }
+      catch(e) {
+        toast('Sunucu yanıtı okunamadı.', true);
+        btn.disabled = false;
+        btn.textContent = 'Kaydet → Sheets';
+        return;
+      }
       if (d.durum === 'OK') {
-        toast(d.mesaj); haptic(15);
+        toast(d.mesaj);
+        try { haptic(15); } catch(e){}
         ['sembol','miktar','fiyat','s-ad','s-ana','s-faiz'].forEach(function(id){
-          var el = document.getElementById(id); if (el) el.value = '';
+          var el = document.getElementById(id);
+          if (el) el.value = '';
         });
         ['k-sec-v','k-sec-e','k-tarih-v','k-tarih-e'].forEach(function(id){
-          var el = document.getElementById(id); if (el) el.value = '';
+          var el = document.getElementById(id);
+          if (el) el.value = '';
         });
-        calcH(); calcS();
-        msg.textContent = d.mesaj; msg.className = 'msg ok';
+        try { calcH(); calcS(); } catch(e){}
+        msg.textContent = d.mesaj;
+        msg.className = 'msg ok';
       } else {
         toast(d.mesaj || 'Kayıt başarısız.', true);
-        msg.textContent = d.mesaj; msg.className = 'msg err';
+        msg.textContent = d.mesaj;
+        msg.className = 'msg err';
       }
+      btn.disabled = false;
+      btn.textContent = 'Kaydet → Sheets';
     })
-         .catch(function(e){ toast('Bağlantı hatası: ' + e.message, true); })
-    .then(function(){ btn.disabled = false; btn.textContent = 'Kaydet → Sheets'; });
+    .catch(function(e){
+      clearTimeout(_acil);
+      toast('Bağlantı hatası: ' + e.message, true);
+      btn.disabled = false;
+      btn.textContent = 'Kaydet → Sheets';
+    });
+}
 
 // ============================================================
 //  ÖZET
@@ -551,16 +593,20 @@ function ozetYukle() {
   fetch(API_URL + '?sayfa=ozet&_=' + Date.now())
     .then(function(r){ return r.json(); })
     .then(function(d) {
-      if (!d || !d.genel) { document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos">Veri yok</div>'; return; }
+      if (!d || !d.genel) {
+        document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos">Veri yok</div>';
+        return;
+      }
       ozetCiz(d);
-      // Sparkline verisini paralel çek
       fetch(API_URL + '?sayfa=seri&kat=genel&gun=365&_=' + Date.now())
         .then(function(r){ return r.json(); })
         .then(function(seri) {
           if (Array.isArray(seri) && seri.length >= 2) sparkCiz(seri);
         }).catch(function(){});
     })
-    .catch(function(e) { document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos">Hata: ' + e.message + '</div>'; });
+    .catch(function(e) {
+      document.getElementById('ozet-icerik').innerHTML = '<div class="detay-bos">Hata: ' + e.message + '</div>';
+    });
 }
 
 function perfVal(kz, pct) {
@@ -569,7 +615,6 @@ function perfVal(kz, pct) {
   return ['<span class="perf-val '+cls+'">'+ik+' ₺'+fmt(Math.abs(kz))+'</span>',
           '<span class="perf-val '+cls+'">%'+fmt(Math.abs(pct||0))+'</span>'];
 }
-
 function donemSeridi(dset) {
   if (!dset) return '';
   var e = {aylik:'30G', uc_aylik:'90G', alti_aylik:'180G', yillik:'365G'};
@@ -584,7 +629,6 @@ function donemSeridi(dset) {
   });
   return s + '</div>';
 }
-
 function kart(baslik, satirlar, dcls, dlbl, tipKey, donemSet) {
   var tik = tipKey ? ' vkart-tiklama' : '';
   var dA = tipKey ? " data-tip='"+tipKey+"'" : '';
@@ -600,7 +644,6 @@ function kart(baslik, satirlar, dcls, dlbl, tipKey, donemSet) {
   s += donemSeridi(donemSet);
   return s + '</div>';
 }
-
 function ozetCiz(d) {
   var g = d.genel, kzOk = g.toplamKZ >= 0;
   var html = '<div class="genel-kart">';
@@ -700,7 +743,7 @@ function sparkCiz(seri) {
   var renk = ok ? '#10b981' : '#ef4444';
   var W = 300, H = 70, pad = 4;
   var pts = [];
-  seri.forEach(function(p, i) {
+  seri.forEach(function(p, i){
     var x = (i/(seri.length-1)) * (W - pad*2) + pad;
     var y = H - pad - ((p.v - min)/(max - min)) * (H - pad*2);
     pts.push((i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1));
@@ -727,8 +770,6 @@ function sparkCiz(seri) {
 // ============================================================
 //  DETAY
 // ============================================================
-var detayTip = '', detayData = [];
-
 function detayAc(tip) {
   detayTip = tip;
   var b = {'Hisse Senedi':'📈 Hisse','Bireysel Emeklilik Fonları':'🏦 BES','Yatırım Fonları':'💼 Yatırım Fonları','Bono':'📄 Bono','Mevduat':'🏛️ Mevduat'};
@@ -739,7 +780,9 @@ function detayAc(tip) {
   fetch(API_URL + '?sayfa=detay&tip=' + encodeURIComponent(tip) + '&_=' + Date.now())
     .then(function(r){ return r.json(); })
     .then(function(data){ detayData = Array.isArray(data) ? data : []; detayCiz(); })
-    .catch(function(){ document.getElementById('detay-icerik').innerHTML = '<div class="yukleniyor">Veri alınamadı.</div>'; });
+    .catch(function(){
+      document.getElementById('detay-icerik').innerHTML = '<div class="yukleniyor">Veri alınamadı.</div>';
+    });
 }
 function detayKapat() {
   document.getElementById('detay-overlay').classList.remove('acik');
@@ -760,7 +803,7 @@ function detayCiz() {
     html += '<div class="kz-chip '+(ok?'kar':'zarar')+'">'+(ok?'▲':'▼')+' ₺'+fmt(Math.abs(topKZ))+'</div></div>';
     html += '<input type="text" class="arama-kutu" placeholder="🔍 Ara..." oninput="filtreUygula(this.value)">';
     html += '<div id="liste">';
-    detayData.forEach(function(p) {
+    detayData.forEach(function(p){
       var kzOk = p.brutKZ >= 0;
       html += '<div class="sembol-kart" data-ara="'+p.sembol.toLowerCase()+'">';
       html += '<div class="sembol-kart-bas"><span class="sembol-adi">'+p.sembol+'</span>';
@@ -780,7 +823,7 @@ function detayCiz() {
     html += '<div style="text-align:right"><div style="color:rgba(255,255,255,.7);font-size:11px">Net</div><div style="color:#86efac;font-size:16px;font-weight:800">₺'+fmt(topNet)+'</div></div></div>';
     html += '<input type="text" class="arama-kutu" placeholder="🔍 Ara..." oninput="filtreUygula(this.value)">';
     html += '<div id="liste">';
-    detayData.forEach(function(k) {
+    detayData.forEach(function(k){
       var bitti = k.kalanGun <= 0;
       html += '<div class="bm-kart" data-ara="'+k.ad.toLowerCase()+'">';
       html += '<div class="bm-kart-bas"><span class="sembol-adi" style="font-size:14px">'+k.ad+'</span>';
@@ -809,25 +852,36 @@ function silSor(satir) {
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.durum === 'OK') {
-        toast('Silindi.'); haptic(15);
+        toast('Silindi.');
+        try { haptic(15); } catch(e){}
         detayData = detayData.filter(function(x){ return x.satir !== satir; });
         detayCiz();
-      } else toast(d.mesaj || 'Silinemedi.', true);
-    }).catch(function(){ toast('Bağlantı hatası.', true); });
+      } else {
+        toast(d.mesaj || 'Silinemedi.', true);
+      }
+    })
+    .catch(function(){ toast('Bağlantı hatası.', true); });
 }
 
 // ============================================================
 //  BAŞLAT
 // ============================================================
-document.getElementById('tarih').valueAsDate = new Date();
-document.getElementById('s-bas').valueAsDate = new Date();
-document.getElementById('h-sat-tarih').valueAsDate = new Date();
-var vd = new Date(); vd.setMonth(vd.getMonth()+3);
-document.getElementById('s-vade').valueAsDate = vd;
-setTimeout(calcS, 50);
-
-if (!API_URL) setTimeout(apiModalAc, 300);
-else apiDurumKontrol();
+(function(){
+  var tarih = document.getElementById('tarih');
+  var sBas = document.getElementById('s-bas');
+  var hSat = document.getElementById('h-sat-tarih');
+  var sVade = document.getElementById('s-vade');
+  if (tarih) tarih.valueAsDate = new Date();
+  if (sBas) sBas.valueAsDate = new Date();
+  if (hSat) hSat.valueAsDate = new Date();
+  if (sVade) {
+    var vd = new Date(); vd.setMonth(vd.getMonth()+3);
+    sVade.valueAsDate = vd;
+  }
+  setTimeout(calcS, 50);
+  if (!API_URL) setTimeout(apiModalAc, 300);
+  else apiDurumKontrol();
+})();
 </script>
 </body>
 </html>
